@@ -32,16 +32,13 @@ class lRule {
 
     boolean tryRule(TreeNode node)
     {
-        if (node.getVal().equals(base) && node.getLeft() != null && node.getRight() != null)
-        {
-            return true;
-        }
-        else if (node.getVal().equals(base) && node.getLeft() != null)
-        {
-            return true;
-        }
-        else
+        if (node.getLeft() == null || !node.getVal().equals(base))
             return false;
+        if (node.getRight() != null && (right.equals("R") || right.equals(node.getRight().toString())))
+        {
+            return true;
+        }
+        return false;
     }
     String applyRule(TreeNode node)
     {

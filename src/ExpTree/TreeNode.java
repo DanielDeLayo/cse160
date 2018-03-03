@@ -1,8 +1,5 @@
 package ExpTree;
 
-import sun.java2d.loops.GraphicsPrimitive;
-import sun.reflect.generics.tree.Tree;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Stack;
@@ -77,10 +74,11 @@ public class TreeNode
     static final private lRule[] latex = new lRule[]
             {
                     new lRule("L", "+", "R", "L + R"), //addition
-                    new lRule("L", "-", "R", "L - R"), //addition
-                    new lRule("L", "^", "R", "\\left(L\\right) ^ {R}"), //addition
-                    new lRule("L", "*", "R", "L \\left(R\\right)"), //addition
-                    new lRule("L", "/", "R", "\\frac{L}{R}"), //addition
+                    new lRule("L", "-", "R", "L - R"), //sub
+                    new lRule("L", "^", "0.5", "\\sqrt{L}"), //power special case first
+                    new lRule("L", "^", "R", "\\left(L\\right) ^ {R}"), //power
+                    new lRule("L", "*", "R", "L \\left(R\\right)"), //mult
+                    new lRule("L", "/", "R", "\\frac{L}{R}"), //division
 
                     new lRule("L", "sin", "", "\\sin\\left(L\\right)"),
                     new lRule("L", "cos", "", "\\cos\\left(L\\right)"),
@@ -105,6 +103,7 @@ public class TreeNode
 
                     new lRule("L", "log", "R", "\\log_{L}\\left(R\\right)"),
             };
+
 
     private TreeNode right = null;
     private TreeNode left = null;
@@ -623,7 +622,7 @@ public class TreeNode
                 return r.applyRule(working, respectTo);
             }
         }
-        return TreeNode.solve("d" + working.getVal() + "/ d" + respectTo);
+        return TreeNode.solve("0");//TreeNode.solve("d" + working.getVal() + "/ d" + respectTo);
     }
 
     private static TreeNode substituteVarsInTree(TreeNode start, String[] vars, double[] nums) {
@@ -663,9 +662,9 @@ public class TreeNode
         return working;
     }
 
-    public static TreeNode limit(String var, String approaches, String s) {
+    /*public static TreeNode limit(String var, String approaches, String s) {
         return simplifyTree(limitTree(solve(s), var, approaches));
-    }
+    }*/
 
     public static TreeNode solve(String s) {return simplifyTree(convertToTree(convertToPost(s)));}
 
@@ -673,6 +672,63 @@ public class TreeNode
         return simplifyTree(deriveTree(solve(s), respect));
     }
 
+    private static String buildLinearProblem(String s, String[] vars, String[] uncertainty)
+    {
+        String problem = "(";
+        for (int i = 0; i < vars.length;i++)
+        {
+            problem += "((("+ vars[i] +")_("+ s +"))^2) * ((uncertainty"+ vars[i] +")^2)";
+            if (i != vars.length-1)
+                problem += "+";
+        }
+        problem += ")^(1/2)";
+        for (int i = 0; i < vars.length; i++)
+        {
+            problem = problem.replace("uncertainty"+ vars[i] +"",uncertainty[i]);
+        }
+        System.out.println(problem);
+        return problem;
+    }
+
+    private static String buildExpProblem(String s, String[] vars, String[] uncertainty, String[] exp, String self)
+    {
+        String problem = "(" + self + ") * ((";
+        for (int i = 0; i < vars.length;i++)
+        {
+            problem += "(("+ exp[i] +")^2) * ((uncertainty"+ vars[i] +"/" + vars[i]+")^2)";
+            if (i != vars.length-1)
+                problem += "+";
+        }
+        problem += ")^(1/2))";
+        for (int i = 0; i < vars.length; i++)
+        {
+            problem = problem.replace("uncertainty"+ vars[i] +"",uncertainty[i]);
+        }
+        System.out.println(problem);
+        return problem;
+    }
+
+    public static String propagateFancy(String s, String[] vars, String[] uncertainty)
+    {
+
+        return latex(buildLinearProblem(s, vars, uncertainty));
+    }
+    public static String propagate(String s, String[] vars, String[] uncertainty)
+    {
+
+        return solve(buildLinearProblem(s, vars, uncertainty)).toString();
+    }
+
+    public static String propagateExpFancy(String s, String[] vars, String[] uncertainty, String[] exp, String self)
+    {
+
+        return latex(buildExpProblem(s, vars, uncertainty, exp, self));
+    }
+    public static String propagateExp(String s, String[] vars, String[] uncertainty, String[] exp, String self)
+    {
+
+        return solve(buildExpProblem(s, vars, uncertainty, exp, self)).toString();
+    }
 }
 
 
