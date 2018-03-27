@@ -33,6 +33,7 @@ public class TreeNode
 
             new Rule("L", "/", "1.0", "L", false), //anything divided by 1 is itself
             new Rule("L", "/", "L", "1.0", false), //anything divided by itself is 1
+            new Rule("0.0", "/", "R", "0.0", false), //zero divided by (almost) anything is 0
 
             new Rule("L", "^", "0.0", "1.0", false), //anything to the 0th power is 1
             new Rule("L", "^", "1.0", "L", false), //anything to the 1st power is itself
@@ -45,13 +46,14 @@ public class TreeNode
             new dRule("L", "-", "R", "(_(L)) - (_(R))"), //subtractive rule
             new dRule("L", "^", "R", "(L ^ R) * ( ((_(L)) * (R/L)) + ((_(R)) * log(e, L)))"), //generalized power rule
             new dRule("L", "*", "R", "((_(L)) * R) + (L * (_(R))) "), //product rule
-            new dRule("L", "/", "R", "((_(L)) * R - L * (_(R)) ) / (R ^ 2)"), //quotient rule
+            new dRule("L", "/", "R", "( ((_(L))*R) - (L*(_(R))) ) / (R ^ 2)"), //quotient rule
 
             new dRule("L", "sin", "", "cos(L) * (_(L))"),
             new dRule("L", "cos", "", "-1 * sin(L) * (_(L))"),
             new dRule("L", "tan", "", "(sec(L) ^ 2) * (_(L))"),
             new dRule("L", "sec", "", "(sec(L) * tan(L)) * ((_)L)"),
             new dRule("L", "csc", "", "-1 * (csc(L) * cot(L)) * (_(L))"),
+            new dRule("L", "cot", "", "-1 * (1 + (cot(L) ^ 2) ) * (_(L))"),
             new dRule("L", "cot", "", "-1 * (1 + (cot(L) ^ 2) ) * (_(L))"),
 
             new dRule("L", "asin", "", "(_(L)) / ((1-(L^2))^(1/2))"),
@@ -695,7 +697,7 @@ public class TreeNode
         String problem = "(" + self + ") * ((";
         for (int i = 0; i < vars.length;i++)
         {
-            problem += "(("+ exp[i] +")^2) * ((uncertainty"+ vars[i] +"/" + vars[i]+")^2)";
+            problem += "((("+ exp[i] +")^2) * ((uncertainty"+ vars[i] +"/" + vars[i]+")^2))";
             if (i != vars.length-1)
                 problem += "+";
         }

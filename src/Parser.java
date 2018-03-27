@@ -32,10 +32,12 @@ If it is an operator, pop two items from the stack, construct an operator node w
         //System.out.println(TreeNode.latex("x _ (log(10, x))"));
         //System.out.println(TreeNode.latex("(x_x)/x)"));
         //System.out.println(TreeNode.latex("x _ (log (e, x^2))"));
-        //System.out.println(TreeNode.latex("x _ (cosh (x))"));
+        System.out.println(TreeNode.latex("x _ (cosh (x))"));
+        //System.out.println(TreeNode.latex("m _ ((4 * m * M * g) / (E * l))"));
         //System.out.println(TreeNode.propagateFancy("m * x + b", new String[]{"m", "x", "b"}, new String[]{"apples", "z", TreeNode.propagate("((ba+bb)/2)", new String[]{"ba","bb"}, new String[]{"b", "a"})}));
         //System.out.println(TreeNode.propagateFancy("3/(1 + (C/5))", new String[]{"C"}, new String[]{"deltac"}));
-        System.out.println(TreeNode.propagateFancy("1/m)", new String[]{"m"}, new String[]{"deltam"}));
+        //System.out.println(TreeNode.propagateFancy("((4 * m * M * g) / (E * l))", new String[]{"E", "m"}, new String[]{"deltalength", "deltaslope"}));
+        //System.out.println(TreeNode.propagateFancy("((1) / (L))", new String[]{"L"}, new String[]{"deltaL"}));
         //System.out.println(TreeNode.propagateExpFancy("(2*d)/(t^2)", new String[]{"d", "t"}, new String[]{"ud", "ut"}, new String[]{"1", "2"}, "g"));
         //System.out.println(TreeNode.latex("x_(3/x)"));
     }
