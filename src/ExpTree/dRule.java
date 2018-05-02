@@ -3,11 +3,39 @@ package ExpTree;
 /**
  * Created by dande_000 on 2/15/2018.
  */
-class dRule {
-    private String left;
-    private String base;
-    private String right;
-    private String equals;
+@Deprecated
+class dRule extends Rule{
+    static final dRule[] rules = new dRule[]{
+            new dRule("L", "+", "R", "(_(L)) + (_(R))"), //additive rule
+            new dRule("L", "-", "R", "(_(L)) - (_(R))"), //subtractive rule
+            new dRule("L", "^", "R", "(L ^ R) * ( ((_(L)) * (R/L)) + ((_(R)) * log(e, L)))"), //generalized power rule
+            new dRule("L", "*", "R", "((_(L)) * R) + (L * (_(R))) "), //product rule
+            new dRule("L", "/", "R", "( ((_(L))*R) - (L*(_(R))) ) / (R ^ 2)"), //quotient rule
+
+            new dRule("L", "sin", "", "cos(L) * (_(L))"),
+            new dRule("L", "cos", "", "-1 * sin(L) * (_(L))"),
+            new dRule("L", "tan", "", "(sec(L) ^ 2) * (_(L))"),
+            new dRule("L", "sec", "", "(sec(L) * tan(L)) * ((_)L)"),
+            new dRule("L", "csc", "", "-1 * (csc(L) * cot(L)) * (_(L))"),
+            new dRule("L", "cot", "", "-1 * (1 + (cot(L) ^ 2) ) * (_(L))"),
+            new dRule("L", "cot", "", "-1 * (1 + (cot(L) ^ 2) ) * (_(L))"),
+
+            new dRule("L", "asin", "", "(_(L)) / ((1-(L^2))^(1/2))"),
+            new dRule("L", "acos", "", "(-1 * (_(L)))/ ((1-(L^2))^(1/2))"),
+            new dRule("L", "atan", "", "(_(L))/ (1+(L^2))"),
+            new dRule("L", "asec", "", "(_(L))/ (abs(L) * ((L^2) - 1)^(1/2))"),
+            new dRule("L", "acsc", "", "(-1*(_(L)))/ (abs(L) * ((L^2) - 1)^(1/2))"),
+            new dRule("L", "acot", "", "(-1*(_(L)))/ (1+(L^2))"),
+
+            new dRule("L", "sinh", "", "cosh(L) * (_(L))"),
+            new dRule("L", "cosh", "", "sinh(L) * (_(L))"),
+            new dRule("L", "tanh", "", "(1 - (tanh(L) ^ 2)) * (_(L))"),
+            new dRule("L", "sech", "", "(-1) * (sech(L) * tanh(L)) * (_(L))"),
+            new dRule("L", "csch", "", "(-1) * (csch(L) * coth(L)) * (_(L))"),
+            new dRule("L", "coth", "", "(1 - (coth(L) ^ 2) ) * (_(L))"),
+
+            new dRule("L", "log", "R", "1/(R * log(e,L))"),
+    };
 
     @Override
     public String toString()
@@ -17,18 +45,7 @@ class dRule {
 
     dRule(String left, String base, String right, String equals)
     {
-        this.left = left;
-        if (!left.contains("L") && !left.contains("R") && !left.contains("(") && !left.contains(")"))
-        {
-            this.left = "(" + this.left + ")";
-        }
-        this.base = base;
-        this.right = right;
-        if (!right.contains("L") && !right.contains("R") && !right.contains("(") && !right.contains(")"))
-        {
-            this.right = "(" + this.right + ")";
-        }
-        this.equals = equals;
+        super(left, base, right, equals);
     }
 
     boolean tryRule(TreeNode node, String respectTo)

@@ -1,116 +1,49 @@
 package ExpTree;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Stack;
+import sun.reflect.generics.tree.Tree;
+
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.*;
 
 /**
  * Created by dande_000 on 8/11/2016.
  */
-public class TreeNode
+public class TreeNode implements Comparable<TreeNode>
 {
     static final private String[] ops = new String[]{"^", "*", "/", "+", "-"};
     static final private String[] oneOps = new String[]{"round", "floor", "ceil", "abs", "asin", "acos", "atan", "acsc", "asec", "acot", "sinh", "cosh", "tanh", "csch", "sech", "coth", "sin", "cos", "tan", "csc", "sec", "cot"};
     static final private String[] twoOps = new String[]{"_", "log", "max", "min"};
-    static final private Rule[] rules = new Rule[]{
-            /*new Rule("Infinity", "+", "Infinity", "Infinity", false), //infinity simplification
-            new Rule("-Infinity", "-", "-Infinity", "Infinity", false),
-            new Rule("Infinity", "*", "Infinity", "Infinity", false),
-            new Rule("-Infinity", "*", "Infinity", "-Infinity", false),
-            new Rule("-Infinity", "*", "-Infinity", "Infinity", false),*/
-
-            new Rule("L", "+", "0.0", "L", true), //anything plus 0 is itself
-            new Rule("L", "+", "L", "2 * L", true), //anything plus itself is 2 * itself
-
-
-            new Rule("L", "-", "L", "0.0", false), //anything minus itself is 0
-            new Rule("L", "-", "0.0", "L", false), //anything minus 0 is itself
-
-            new Rule("L", "*", "1.0", "L", true), //anything times 1 is itself
-            new Rule("L", "*", "0.0", "0.0", true), //anything times 0 is 0
-
-            new Rule("L", "/", "1.0", "L", false), //anything divided by 1 is itself
-            new Rule("L", "/", "L", "1.0", false), //anything divided by itself is 1
-            new Rule("0.0", "/", "R", "0.0", false), //zero divided by (almost) anything is 0
-
-            new Rule("L", "^", "0.0", "1.0", false), //anything to the 0th power is 1
-            new Rule("L", "^", "1.0", "L", false), //anything to the 1st power is itself
-            new Rule("1.0", "^", "R", "1.0", false), //1 to any power is
-
-            new Rule("L", "log", "L", "1.0", true) //Log simplification. See manual addition below
-    };
-    static final private dRule[] derivatives = new dRule[]{
-            new dRule("L", "+", "R", "(_(L)) + (_(R))"), //additive rule
-            new dRule("L", "-", "R", "(_(L)) - (_(R))"), //subtractive rule
-            new dRule("L", "^", "R", "(L ^ R) * ( ((_(L)) * (R/L)) + ((_(R)) * log(e, L)))"), //generalized power rule
-            new dRule("L", "*", "R", "((_(L)) * R) + (L * (_(R))) "), //product rule
-            new dRule("L", "/", "R", "( ((_(L))*R) - (L*(_(R))) ) / (R ^ 2)"), //quotient rule
-
-            new dRule("L", "sin", "", "cos(L) * (_(L))"),
-            new dRule("L", "cos", "", "-1 * sin(L) * (_(L))"),
-            new dRule("L", "tan", "", "(sec(L) ^ 2) * (_(L))"),
-            new dRule("L", "sec", "", "(sec(L) * tan(L)) * ((_)L)"),
-            new dRule("L", "csc", "", "-1 * (csc(L) * cot(L)) * (_(L))"),
-            new dRule("L", "cot", "", "-1 * (1 + (cot(L) ^ 2) ) * (_(L))"),
-            new dRule("L", "cot", "", "-1 * (1 + (cot(L) ^ 2) ) * (_(L))"),
-
-            new dRule("L", "asin", "", "(_(L)) / ((1-(L^2))^(1/2))"),
-            new dRule("L", "acos", "", "(-1 * (_(L)))/ ((1-(L^2))^(1/2))"),
-            new dRule("L", "atan", "", "(_(L))/ (1+(L^2))"),
-            new dRule("L", "asec", "", "(_(L))/ (abs(L) * ((L^2) - 1)^(1/2))"),
-            new dRule("L", "acsc", "", "(-1*(_(L)))/ (abs(L) * ((L^2) - 1)^(1/2))"),
-            new dRule("L", "acot", "", "(-1*(_(L)))/ (1+(L^2))"),
-
-            new dRule("L", "sinh", "", "cosh(L) * (_(L))"),
-            new dRule("L", "cosh", "", "sinh(L) * (_(L))"),
-            new dRule("L", "tanh", "", "(1 - (tanh(L) ^ 2)) * (_(L))"),
-            new dRule("L", "sech", "", "(-1) * (sech(L) * tanh(L)) * (_(L))"),
-            new dRule("L", "csch", "", "(-1) * (csch(L) * coth(L)) * (_(L))"),
-            new dRule("L", "coth", "", "(1 - (coth(L) ^ 2) ) * (_(L))"),
-
-            new dRule("L", "log", "R", "1/(R * log(e,L))"),
-    };
-
-    static final private lRule[] latex = new lRule[]
-            {
-                    new lRule("L", "+", "R", "L + R"), //addition
-                    new lRule("L", "-", "R", "L - R"), //sub
-                    new lRule("L", "^", "0.5", "\\sqrt{L}"), //power special case first
-                    new lRule("L", "^", "R", "\\left(L\\right) ^ {R}"), //power
-                    new lRule("L", "*", "R", "L \\left(R\\right)"), //mult
-                    new lRule("L", "/", "R", "\\frac{L}{R}"), //division
-
-                    new lRule("L", "sin", "", "\\sin\\left(L\\right)"),
-                    new lRule("L", "cos", "", "\\cos\\left(L\\right)"),
-                    new lRule("L", "tan", "", "\\tan\\left(L\\right)"),
-                    new lRule("L", "sec", "", "\\sec\\left(L\\right)"),
-                    new lRule("L", "csc", "", "\\csc\\left(L\\right)"),
-                    new lRule("L", "cot", "", "\\cot\\left(L\\right)"),
-
-                    new lRule("L", "asin", "", "\\arcsin\\left(L\\right)"),
-                    new lRule("L", "acos", "", "\\arccos\\left(L\\right)"),
-                    new lRule("L", "atan", "", "\\arctan\\left(L\\right)"),
-                    new lRule("L", "asec", "", "\\arcsec\\left(L\\right)"),
-                    new lRule("L", "acsc", "", "\\arccsc\\left(L\\right)"),
-                    new lRule("L", "acot", "", "\\arccot\\left(L\\right)"),
-
-                    new lRule("L", "sinh", "", "\\sinh\\left(L\\right)"),
-                    new lRule("L", "cosh", "", "\\cosh\\left(L\\right)"),
-                    new lRule("L", "tanh", "", "\\tanh\\left(L\\right)"),
-                    new lRule("L", "sech", "", "\\sech\\left(L\\right)"),
-                    new lRule("L", "csch", "", "\\csch\\left(L\\right)"),
-                    new lRule("L", "coth", "", "\\coth\\left(L\\right)"),
-
-                    new lRule("L", "log", "R", "\\log_{L}\\left(R\\right)"),
-            };
-
+    static final private int THREAD_LIMIT = 10;
+    static public boolean hasOPs(TreeNode tree)
+    {
+        return (containsAny(tree.getVal(), ops) || containsAny(tree.getVal(), twoOps) || containsAny(tree.getVal(), oneOps));
+    }
+    static public boolean hasConsts(TreeNode tree)
+    {
+        try
+        {
+            Double.parseDouble(tree.getVal());
+        } catch (Exception e)
+        {
+            return false;
+        }
+        return true;
+    }
 
     private TreeNode right = null;
     private TreeNode left = null;
     private String val;
 
+    public boolean hasLeft()
+    {
+        return left != null;
+    }
+    public boolean hasRight()
+    {
+        return right != null;
+    }
     String getVal() {
         return val;
     }
@@ -123,24 +56,24 @@ public class TreeNode
         return right;
     }
 
-    private void setRight(TreeNode right) {
-        this.right = right;
+    protected void setRight(TreeNode right) {
+        this.right = new TreeNode(right);
     }
 
     TreeNode getLeft() {
         return left;
     }
 
-    private void setLeft(TreeNode left) {
-        this.left = left;
+    protected void setLeft(TreeNode left) {
+        this.left = new TreeNode(left);
     }
 
-    private TreeNode(String val) {
+    public TreeNode(String val) {
         this.val = val;
     }
 
 
-    private TreeNode(TreeNode old)
+    public TreeNode(TreeNode old)
     {
         this(old.val);
         if (old.getLeft() != null)
@@ -164,7 +97,8 @@ public class TreeNode
 
     public static String latex(String s)
     {
-        return toLatexR(solve(s)).getVal();
+        System.out.println("s" + s);
+        return toLatexR(TreeNode.reduceCalc(TreeNode.softSolve(s))).getVal();
     }
 
     private static TreeNode toLatexR(TreeNode working)
@@ -172,17 +106,17 @@ public class TreeNode
         TreeNode right;
         TreeNode left;
         try {   //recursively simplify if right/left is an operator with 2 parameters
-            right = working.getRight() != null && (containsAny(working.getRight().getVal(), ops) || containsAny(working.getRight().getVal(), oneOps) || containsAny(working.getRight().getVal(), twoOps)) ? toLatexR(working.getRight()) : working.getRight();
-            left = working.getLeft() != null && (containsAny(working.getLeft().getVal(), ops)  || containsAny(working.getLeft().getVal(), oneOps) || containsAny(working.getLeft().getVal(), twoOps)) ? toLatexR(working.getLeft()) : working.getLeft();
+            right = working.hasRight() && (containsAny(working.getRight().getVal(), ops) || containsAny(working.getRight().getVal(), oneOps) || containsAny(working.getRight().getVal(), twoOps)) ? toLatexR(working.getRight()) : working.getRight();
+            left = working.hasLeft() && (containsAny(working.getLeft().getVal(), ops)  || containsAny(working.getLeft().getVal(), oneOps) || containsAny(working.getLeft().getVal(), twoOps)) ? toLatexR(working.getLeft()) : working.getLeft();
 
             working.setRight(right);
             working.setLeft(left);
         } catch (Exception e) {
-            System.out.println(":(" + e);
+            System.out.println(":( Nothing to simplify");
             return working;
         }
 
-        for (lRule l : latex) {
+        for (lRule l : lRule.rules) {
             if (l.tryRule(working))
             {
                 working.setVal(l.applyRule(working));
@@ -251,7 +185,7 @@ public class TreeNode
             if (split.get(i) == null || split.get(i).equals(","))
                 split.remove(i);
 
-        System.out.println(split);
+        //System.out.println(split);
         String[] res = new String[split.size()];
         split.toArray(res);
         for (int i = 0; i < res.length; i++)
@@ -325,7 +259,13 @@ public class TreeNode
         return post;
     }
 
-    private static TreeNode simplifyTree(TreeNode start) {
+    private static TreeNode reduceCalc(TreeNode start)
+    {
+        return simplifyTree(doStepSimplify(simplifyTree(start), 5, mRule.reduceRules));
+    }
+
+    private static TreeNode simplifyTree(TreeNode start) { //FIXME simplify
+        System.out.println(start + ", " + start.getLeft() + ", "+ start.getRight());
         TreeNode working = new TreeNode(start);
         TreeNode right;
         TreeNode left;
@@ -349,10 +289,12 @@ public class TreeNode
         try {
             rightVal = Double.parseDouble(right.getVal());
         } catch (Exception e) {
+            //System.out.println( right.getVal() + "right Null");
         }
         try {
             leftVal = Double.parseDouble(left.getVal());
         } catch (Exception e) {
+            //System.out.println( left.getVal() + "left Null");
         }
 
         //null value means variable or operator values
@@ -384,9 +326,9 @@ public class TreeNode
                 case "log":
                     result = Math.log(rightVal) / Math.log(leftVal);
                     break;
-                case "_":
+                /*case "_":
                     result = 0;
-                    break;
+                    break;*/
             }
             return new TreeNode("" + result);
         } else if (rightVal == null && leftVal != null) //right is only variable? try rules
@@ -410,8 +352,8 @@ public class TreeNode
                     return new TreeNode("" + Math.floor(leftVal));
                 case "ceil":
                     return new TreeNode("" + Math.ceil(leftVal));
-                case "_":
-                    return TreeNode.solve("0");
+                //case "_":
+                  //  return TreeNode.softSolve("0");
                 case "asin":
                     return new TreeNode("" + Math.asin(leftVal));
                 case "acos":
@@ -436,52 +378,63 @@ public class TreeNode
                     return new TreeNode("" + (1 / Math.cosh(leftVal)));
                 case "coth":
                     return new TreeNode("" + (1 / Math.tanh(leftVal)));
-                case "log":
+                /*case "log":
                     if (working.getRight().getVal().equals("^"))
                     {
-                        return TreeNode.solve(working.getRight().getRight() + "* log("+ working.getLeft().getVal() +"," + working.getRight().getLeft() +") ");
+                        return TreeNode.softSolve(working.getRight().getRight() + "* log("+ working.getLeft().getVal() +"," + working.getRight().getLeft() +") ");
                     }
                     break;
                 case "^":
                     if (working.getLeft().getVal().equals("^"))
                     {
-                        return TreeNode.solve(working.getLeft().getLeft() + " ^ " + working.getLeft().getRight() + " * " + working.getRight() );
+                        return TreeNode.softSolve(working.getLeft().getLeft() + " ^ " + working.getLeft().getRight() + " * " + working.getRight() );
                     }
-                    break;
+                    break;*/
             }
 
-            for (int i = 0; i < rules.length; i++) {
-                working = rules[i].tryRule(working);
-            }
+
+            /*for (sRule s : sRule.rules) {
+                if (s.tryRule(working))
+                {
+                    return s.applyRule(working);
+                }
+            }*/
             return working;
         } else if (rightVal != null) //left is only variable? try rules + single params
         {
-            switch (working.getVal()) {
+            /*switch (working.getVal()) {
                 case "_":
                     return deriveTree(working.getRight(), working.getLeft().getVal());
-            }
-            for (int i = 0; i < rules.length; i++) {
-                working = rules[i].tryRule(working);
-            }
+            }*/
+            /*for (sRule s : sRule.rules) {
+                if (s.tryRule(working))
+                {
+                    return s.applyRule(working);
+                }
+            }*/
             return working;
         } else //both null
         {
-            switch (working.getVal()) {
+            /*switch (working.getVal()) {
                 case "_":
                     return deriveTree(working.getRight(), working.getLeft().getVal());
                 case "log":
                     if (working.getRight().getVal().equals("^"))
                     {
-                        return TreeNode.solve(working.getRight().getRight() + "* log("+ working.getLeft().getVal() +"," + working.getRight().getLeft() +") ");
+                        return TreeNode.softSolve(working.getRight().getRight() + "* log("+ working.getLeft().getVal() +"," + working.getRight().getLeft() +") ");
                     }
                     break;
-            }
-            if (working.getLeft() != null && working.getRight() != null) //no operators to simplify.
+            }*/
+            /*if (working.getLeft() != null && working.getRight() != null) //no operators to simplify.
             {
-                for (int i = 0; i < rules.length; i++) {
-                    working = rules[i].tryRule(working);
+                for (sRule s : sRule.rules) {
+                    if (s.tryRule(working))
+                    {
+                        return  s.applyRule(working);
+                    }
                 }
-            }
+                return working;
+            }*/
             return working;
         }
     }
@@ -496,135 +449,24 @@ public class TreeNode
         return false;
     }
 
-    private static TreeNode limitTree(TreeNode start, String var, String approaches) {
-        TreeNode working = new TreeNode(start);
-        working = simplifyTree(working);
-        System.out.println("W" + working);
-        if (!working.toString().contains(var)) //limit of a constant is that constant
-        {
-            return working;
-        }
-        if (approaches.equals("Infinity") || approaches.equals("-Infinity")) {
-            switch (working.getVal()) {
-                case "/":
-                    String denom = working.getLeft().toString();
-                    String num = working.getRight().toString();
-                    if (denom.contains(var) && num.contains(var))// L'hopital's rule to the rescue!
-                    {
-                        TreeNode dLeft = deriveTree(working.getLeft(), var);
-                        TreeNode dRight = deriveTree(working.getRight(), var);
-                        working.setLeft(dLeft);
-                        working.setRight(dRight);
-                        working = limitTree(working, var, approaches); //apply the rule recursively
-                    } else //we have a winner!
-                    {
-                        TreeNode dLeft = deriveTree(working.getLeft(), var); //strip to the coefficients
-                        TreeNode dRight = deriveTree(working.getRight(), var); //or something like that
-                        working.setLeft(dLeft);
-                        working.setRight(dRight);
-                    }
-                    return working;
-                case "*":
-                    working.setLeft(limitTree(working.getLeft(), var, approaches));
-                    working.setRight(limitTree(working.getRight(), var, approaches));
-                    return working;
-                case "+":
-                    if (working.getLeft().getVal().equals("-" + var)) {
-                        working.getLeft().setVal("-");
-                        working.getLeft().setLeft(new TreeNode("0"));
-                        working.getLeft().setRight(new TreeNode(var));
-                    }
-                    working.setLeft(limitTree(working.getLeft(), var, approaches));
-                    System.out.println("k");
-                    if (working.getRight().getVal().equals("-" + var)) {
-                        working.getRight().setVal("-");
-                        working.getRight().setLeft(new TreeNode("0"));
-                        working.getRight().setRight(new TreeNode(var));
-
-                    }
-                    working.setRight(limitTree(working.getRight(), var, approaches));
-                    return working;
-                case "-":
-                    System.out.println(working);
-                    String toSub = working.getRight().toString();
-                    String number = working.getLeft().toString();
-                    if (toSub.contains(var) && number.contains(var))// Indeterminate. Divide by x
-                    {
-                        TreeNode tempWorking = new TreeNode("/");
-                        tempWorking.setLeft(new TreeNode(working));
-                        tempWorking.setRight(new TreeNode(var));
-
-                        working = limitTree(tempWorking, var, approaches); //apply the rule recursively
-                    } else //we have a winner!
-                    {
-                        if (number.contains(var)) {
-                            return new TreeNode(approaches);
-                        } else if (toSub.contains(var)) {
-                            return new TreeNode(approaches.equals("Infinity") ? "-Infinity" : "Infinity");
-                        }
-                    }
-                    return working;
-                default:
-                    working = simplifyTree(substituteVarsInTree(working, new String[]{var}, new String[]{approaches}));
-                    return working;
-            }
-        } else {
-            //attempt a substitute
-            switch (working.getVal()) {
-                case "/":
-                    TreeNode denom = simplifyTree(substituteVarsInTree(working.getRight(), new String[]{var}, new String[]{approaches}));
-                    TreeNode num = simplifyTree(substituteVarsInTree(working.getLeft(), new String[]{var}, new String[]{approaches}));
-                    if (denom.getVal().equals("0.0") && num.getVal().equals("0.0"))// L'hospital's rule to the rescue!
-                    {
-                        TreeNode dLeft = deriveTree(working.getLeft(), var);
-                        TreeNode dRight = deriveTree(working.getRight(), var);
-                        working.setLeft(dLeft);
-                        working.setRight(dRight);
-                        working = limitTree(working, var, approaches); //apply the rule recursively
-                    } else //sub worked
-                    {
-                        working.setRight(denom);
-                        working.setLeft(num);
-                        working = simplifyTree(substituteVarsInTree(working, new String[]{var}, new String[]{approaches}));
-                    }
-                    return working;
-                case "*":
-                    working.setLeft(limitTree(working.getLeft(), var, approaches));
-                    working.setRight(limitTree(working.getRight(), var, approaches));
-                    return working;
-                case "+":
-                    working.setLeft(limitTree(working.getLeft(), var, approaches));
-                    working.setRight(limitTree(working.getRight(), var, approaches));
-                    return working;
-                case "-":
-                    working.setLeft(limitTree(working.getLeft(), var, approaches));
-                    working.setRight(limitTree(working.getRight(), var, approaches));
-                    return working;
-                default:
-                    working = simplifyTree(substituteVarsInTree(working, new String[]{var}, new String[]{approaches}));
-                    return working;
-            }
-        }
-    }
-
-    private static TreeNode deriveTree(TreeNode start, String respectTo) {
+    private static TreeNode deriveTree(TreeNode start, String respectTo) { //FIXME
         TreeNode working = new TreeNode(start);
         System.out.println(start.toString() + " with respect to " + respectTo);
-        if (working.getVal().equals("e")) return TreeNode.solve("0");
+        if (working.getVal().equals("e")) return TreeNode.softSolve("0");
         try {
             Double.parseDouble(working.getVal());
-            return TreeNode.solve("0");
+            return TreeNode.softSolve("0");
         } catch (Exception e) {
             if (working.getVal().equals(respectTo)) {
-                return TreeNode.solve("1");}
+                return TreeNode.softSolve("1");}
         }
-        for (dRule r : derivatives) {
+        for (dRule r : dRule.rules) {
             if (r.tryRule(working, respectTo))
             {
                 return r.applyRule(working, respectTo);
             }
         }
-        return TreeNode.solve("0");//TreeNode.solve("d" + working.getVal() + "/ d" + respectTo);
+        return TreeNode.softSolve("0");//TreeNode.softSolve("d" + working.getVal() + "/ d" + respectTo);
     }
 
     private static TreeNode substituteVarsInTree(TreeNode start, String[] vars, double[] nums) {
@@ -664,14 +506,25 @@ public class TreeNode
         return working;
     }
 
+    public static String substituteSolve(String s, String[] vars, double[] nums)
+    {
+        return simplifyTree(substituteVarsInTree(solve(s), vars, nums)).toString();
+    }
+    public static String substituteSolveFancy(String s, String[] vars, double[] nums)
+    {
+        return toLatexR(simplifyTree(substituteVarsInTree(solve(s), vars, nums))).toString();
+    }
+
     /*public static TreeNode limit(String var, String approaches, String s) {
         return simplifyTree(limitTree(solve(s), var, approaches));
     }*/
 
-    public static TreeNode solve(String s) {return simplifyTree(convertToTree(convertToPost(s)));}
+    public static TreeNode solve(String s) {System.out.println("solving" + s);return stepSimplify(convertToTree(convertToPost(s)), 5000);} //FIXME
+
+    public static TreeNode softSolve(String s) {return convertToTree(convertToPost(s));}
 
     public static TreeNode derive(String s, String respect) {
-        return simplifyTree(deriveTree(solve(s), respect));
+        return simplifyTree(deriveTree(softSolve(s), respect));
     }
 
     private static String buildLinearProblem(String s, String[] vars, String[] uncertainty)
@@ -679,19 +532,16 @@ public class TreeNode
         String problem = "(";
         for (int i = 0; i < vars.length;i++)
         {
-            problem += "((("+ vars[i] +")_("+ s +"))^2) * ((uncertainty"+ vars[i] +")^2)";
+            System.out.println("Starting!" + vars[i]);
+            problem += solve("(( (("+vars[i]+")_("+ s +"))^2) * (("+ uncertainty[i] +")^2))").toString();;
             if (i != vars.length-1)
                 problem += "+";
         }
         problem += ")^(1/2)";
-        for (int i = 0; i < vars.length; i++)
-        {
-            problem = problem.replace("uncertainty"+ vars[i] +"",uncertainty[i]);
-        }
-        System.out.println(problem);
+        System.out.println("problem:"+problem);
         return problem;
     }
-
+/*
     private static String buildExpProblem(String s, String[] vars, String[] uncertainty, String[] exp, String self)
     {
         String problem = "(" + self + ") * ((";
@@ -709,18 +559,43 @@ public class TreeNode
         System.out.println(problem);
         return problem;
     }
+*/
+    private static TreeSet<String> getVarsInTree(TreeNode tree)
+    {
+        TreeSet<String> list = new TreeSet<>();
+        if (!hasOPs(tree))
+        {
+            try
+            {
+                Double.parseDouble(tree.getVal());
+            } catch (Exception e)
+            {
+                list.add(tree.getVal());
+            }
+        }
+        if (tree.getLeft() != null)
+            list.addAll(getVarsInTree(tree.getLeft()));
+        if (tree.getRight() != null)
+            list.addAll(getVarsInTree(tree.getRight()));
+        return list;
+    }
+
+    public static String[] getVarsInString(String s)
+    {
+        TreeSet<String> set = getVarsInTree(convertToTree(convertToPost(s)));
+        String[] arr = new String[set.size()];
+        return set.toArray(arr);
+    }
 
     public static String propagateFancy(String s, String[] vars, String[] uncertainty)
     {
-
-        return latex(buildLinearProblem(s, vars, uncertainty));
+        return latex(propagate(s, vars, uncertainty));
     }
     public static String propagate(String s, String[] vars, String[] uncertainty)
     {
-
-        return solve(buildLinearProblem(s, vars, uncertainty)).toString();
+        return (buildLinearProblem(s, vars, uncertainty)).toString();
     }
-
+/*
     public static String propagateExpFancy(String s, String[] vars, String[] uncertainty, String[] exp, String self)
     {
 
@@ -731,6 +606,241 @@ public class TreeNode
 
         return solve(buildExpProblem(s, vars, uncertainty, exp, self)).toString();
     }
+*/
+
+    static public TreeNode stepSimplify(TreeNode parent, int maxSteps)
+    {
+        System.out.println
+                ("p:" + parent);
+        TreeNode simple = doStepSimplify(parent, maxSteps, mRule.sRules);
+        System.out.println(simple);
+        if (simple.toString().contains("_")) {
+            simple = doStepDerivative(simple, maxSteps);
+            System.out.println(simple);
+            simple = doStepSimplify(simple, maxSteps, mRule.sRules);
+            System.out.println(simple);
+        }
+        System.out.println(parent + " to " + simple);
+        return simple;
+    }
+
+    static private TreeNode doStepDerivative(TreeNode parent, int maxSteps)
+    {
+        if (!parent.toString().contains("_"))
+            return parent;
+        int steps = 0;
+        String old = "";
+        TreeNode temp = new TreeNode(parent);
+        while (steps <= maxSteps && !old.equals(temp.toString()))
+        {
+            old = temp.toString();
+            for (mRule rule : mRule.dRules) {
+                HashMap<String, TreeNode> varMap = rule.buildAndTryRule(temp);
+                if (varMap != null) {
+                    temp = TreeNode.reduceCalc(rule.applyRule(varMap));
+                    //System.out.println("Applied Rule: ");
+                    //System.out.println("result: " + rule.applyRule());
+                } else {
+                    //System.out.println("Rule Not Applied");
+                }
+            }
+
+            if (temp.hasLeft()) {
+                temp.setLeft(doStepDerivative(temp.getLeft(), maxSteps - steps));
+                steps++;
+            }
+
+            if (temp.hasRight()) {
+                temp.setRight(doStepDerivative(temp.getRight(), maxSteps - steps));
+                steps++;
+            }
+            steps++;
+        }
+        return temp;
+    }
+
+    static private TreeNode doStepSimplify(TreeNode parent, int maxSteps, mRule[] rules)
+    {
+        int steps = 0;
+        Set<TreeNode> trees = new HashSet<TreeNode>();
+        Set<TreeNode> toCheckTrees = new HashSet<TreeNode>();
+        boolean done = false;
+        int numTrees;
+        toCheckTrees.add(parent);
+        trees.add(parent);
+        final int complexityLimit = getComplexityLimit(parent);
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_LIMIT);
+
+        while (!done)
+        {
+            final Set<TreeNode> temp = ConcurrentHashMap.newKeySet();
+            steps++;
+            numTrees = trees.size();
+            final TreeNode toCheckArr[] = new TreeNode[toCheckTrees.size()];
+            toCheckTrees.toArray(toCheckArr);
+
+            Collection<Future<?>> tasks = new LinkedList<Future<?>>();
+            for (int i = 0; i < toCheckArr.length;i++)
+            {
+                TreeNode toCheck = toCheckArr[i];
+                tasks.add(executor.submit(new Thread(){
+                    public void run(){
+                            temp.addAll(permutation(toCheck, complexityLimit, rules));
+                    }
+                }));
+            }
+            for (Future<?> currTask : tasks) {
+                try {
+                    currTask.get();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println("temp:" + temp.size());
+            System.out.println("temp:" + temp);
+            System.out.println("trees:" + trees.size());
+            System.out.println("trees:" + trees);
+            System.out.println("best:" + getBestNode(trees));
+            System.out.println("steps:" + steps);
+
+            toCheckTrees.clear();
+            toCheckTrees.addAll(temp);
+            toCheckTrees.removeAll(trees);
+            trees.addAll(temp);
+            done = (numTrees == trees.size() || steps >= maxSteps);
+        }
+        System.out.println(trees.size());
+        System.out.println(trees);
+        executor.shutdownNow();
+        return getBestNode(trees);
+    }
+
+    static private TreeNode getBestNode(Set<TreeNode> trees)
+    {
+        TreeNode[] sortMe = new TreeNode[trees.size()];
+        trees.toArray(sortMe);
+        Arrays.sort(sortMe);
+        /*for (TreeNode t : sortMe)
+            System.out.print(t.toString() + ",");
+        System.out.println();*/
+        return sortMe[0];
+
+    }
+    static private Set<TreeNode> permutation(TreeNode parent, int complexityLimit, mRule[] ruleset)
+    {
+        Set<TreeNode> set = new HashSet<>();//new HashSet<TreeNode>();
+        TreeNode temp;
+        for (mRule rule: ruleset)
+        {
+            //System.out.println("Trying rule");
+            //System.out.println(rule.toString());
+            HashMap<String, TreeNode> varMap = rule.buildAndTryRule(parent);
+            if (varMap != null)
+            {
+                temp = TreeNode.reduceCalc(rule.applyRule(varMap));
+                if (temp.getComplexity() <= complexityLimit)
+                    set.add(temp);
+                //System.out.println("Applied Rule: ");
+                //System.out.println("result: " + rule.applyRule());
+            }
+            else {
+                //System.out.println("Rule Not Applied");
+            }
+        }
+
+        if (parent.hasLeft())
+        {
+            Set<TreeNode> s = permutation(parent.getLeft(), complexityLimit-(parent.getComplexity()-parent.getLeft().getComplexity()), ruleset);
+            for (TreeNode n : s)
+            {
+                //System.out.println(n);
+                temp = new TreeNode(parent);
+                temp.setLeft(n);
+                temp = TreeNode.reduceCalc(temp);
+                if (temp.getComplexity() <= complexityLimit)
+                    set.add(temp);
+            }
+        }
+
+        if (parent.hasRight())
+        {
+            Set<TreeNode> s = permutation(parent.getRight(), complexityLimit-(parent.getComplexity()-parent.getLeft().getComplexity()), ruleset);
+            for (TreeNode n : s)
+            {
+                temp = new TreeNode(parent);
+                temp.setRight(n);
+                temp = TreeNode.reduceCalc(temp);
+                if (temp.getComplexity() <= complexityLimit)
+                    set.add(temp);
+            }
+        }
+        //System.out.println("Nope");
+        return set;
+    }
+
+    //FIXME Derivatives take forever due to large complexity increase
+    private static int getComplexityLimit(TreeNode tree)
+    {
+        return Math.max(tree.getComplexity()*2, 1000 );
+    }
+
+    private int getComplexity()
+    {
+        int complexity = (hasRight()?getRight().getComplexity():0) + (hasLeft()?getLeft().getComplexity():0);
+        if (hasOPs(this))
+        {
+            if (containsAny(getVal(), ops))
+            {
+                return complexity + 2;
+            }
+            else if (containsAny(getVal(), twoOps))
+            {
+                return complexity + 3;
+            }
+            else
+            {
+                return complexity + 5;
+            }
+
+        }
+        try{
+            Integer.parseInt(getVal().replace(".0",""));
+            return complexity + 1;
+        }
+        catch (Exception e) {}
+        try{
+            Double.parseDouble(getVal());
+            return complexity + 2;
+        }
+        catch (Exception e) {}
+        return complexity + 2;
+        //return toString().length();
+    }
+    //FIXME build a weighting function
+    @Override
+    public int compareTo(TreeNode t)
+    {
+        return getComplexity() + ((this.toString().contains("_"))? 10000 : 0) - (t.getComplexity() + ((t.toString().contains("_"))? 10000 : 0));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        TreeNode treeNode = (TreeNode) o;
+
+        if (right != null ? !right.equals(treeNode.right) : treeNode.right != null) return false;
+        if (left != null ? !left.equals(treeNode.left) : treeNode.left != null) return false;
+        return val.equals(treeNode.val);
+
+    }
+
+    @Override
+    public int hashCode(){
+        return getVal().hashCode()*31*31 + (hasRight()?getRight().hashCode()*31:0) + (hasLeft()?getLeft().hashCode():0);
+    }
+
 }
 
 
